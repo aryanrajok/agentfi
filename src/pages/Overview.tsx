@@ -29,10 +29,8 @@ export default function Overview() {
   const walletBalance = parseFloat(balance || '0');
   const animatedBalance = useCountUp(walletBalance, 800);
 
-  const currencySymbol = chainId === 56 ? 'BNB' : chainId === 97 ? 'tBNB' : 'ETH';
-  const scanUrl = chainId === 97
-    ? `https://testnet.bscscan.com/address/${address}`
-    : `https://bscscan.com/address/${address}`;
+  const currencySymbol = 'BNB';
+  const scanUrl = `https://bscscan.com/address/${address}`;
 
   // If not connected - show connect prompt
   if (!connected) {
@@ -123,12 +121,9 @@ export default function Overview() {
             <div className="gs-step">
               <div className="gs-step-number">2</div>
               <div className="gs-step-content">
-                <span className="gs-step-title">Get Testnet BNB</span>
+                <span className="gs-step-title">Ensure BNB Balance</span>
                 <span className="gs-step-desc text-tertiary">
-                  You need tBNB to pay gas fees.{' '}
-                  <a href="https://www.bnbchain.org/en/testnet-faucet" target="_blank" rel="noopener noreferrer" className="text-green">
-                    Get free tBNB →
-                  </a>
+                  You need BNB to pay gas fees on BNB Smart Chain Mainnet.
                 </span>
               </div>
             </div>
@@ -166,7 +161,7 @@ export default function Overview() {
             <div className="wallet-detail-row">
               <span className="text-secondary" style={{ fontSize: 12 }}>NETWORK</span>
               <span className="font-data" style={{ fontSize: 12 }}>
-                {chainId === 97 ? 'BNB Smart Chain Testnet' : chainId === 56 ? 'BNB Smart Chain Mainnet' : `Chain ID: ${chainId}`}
+                {chainId === 56 ? 'BNB Smart Chain Mainnet' : chainId === 97 ? 'BNB Smart Chain Testnet' : `Chain ID: ${chainId}`}
               </span>
             </div>
             <div className="wallet-detail-row">

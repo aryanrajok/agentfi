@@ -37,8 +37,8 @@ export default function WalletModal({ isOpen, onClose, redirectToDashboard = fal
       } else {
         setTimeout(() => onClose(), 1200);
       }
-    } catch (err: any) {
-      setConnectError(err.message || 'Connection failed');
+    } catch (err: unknown) {
+      setConnectError(err instanceof Error ? err.message : 'Connection failed');
     }
   };
 

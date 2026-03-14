@@ -1,5 +1,22 @@
 import { BrowserProvider, formatEther, JsonRpcSigner } from 'ethers';
 
+// Minimal EIP-1193 provider interface
+interface EthereumProvider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<string | string[]>;
+  on: (event: string, handler: (value: string | string[]) => void) => void;
+  removeListener: (event: string, handler: (value: string | string[]) => void) => void;
+}
+
+// Helper to check for Web3/EIP-1193 provider errors with a code property
+interface ProviderError {
+  code: number | string;
+  message?: string;
+}
+
+function isProviderError(e: unknown): e is ProviderError {
+  return typeof e === 'object' && e !== null && 'code' in e;
+}
+
 // BNB Chain configuration
 export const BNB_CHAIN_CONFIG = {
   chainId: '0x38', // 56 in hex
@@ -25,8 +42,8 @@ export const BNB_TESTNET_CONFIG = {
   blockExplorerUrls: ['https://testnet.bscscan.com/'],
 };
 
-// Use testnet for development
-const CHAIN_CONFIG = BNB_TESTNET_CONFIG;
+// Use mainnet for production
+const CHAIN_CONFIG = BNB_CHAIN_CONFIG;
 
 export interface WalletConnectionResult {
   address: string;
@@ -55,9 +72,9 @@ export async function connectWallet(): Promise<WalletConnectionResult> {
   try {
     // Step 1: Request accounts directly via window.ethereum
     // This triggers the MetaMask popup
-    const accounts: string[] = await window.ethereum.request({
+    const accounts = await window.ethereum.request({
       method: 'eth_requestAccounts',
-    });
+    }) as string[];
 
     if (!accounts || accounts.length === 0) {
       throw new Error('No accounts found. Please unlock your wallet.');
@@ -66,16 +83,16 @@ export async function connectWallet(): Promise<WalletConnectionResult> {
     const address = accounts[0];
 
     // Step 2: Get chain ID directly
-    const chainIdHex: string = await window.ethereum.request({
+    const chainIdHex = await window.ethereum.request({
       method: 'eth_chainId',
-    });
+    }) as string;
     const chainId = parseInt(chainIdHex, 16);
 
     // Step 3: Get balance directly
-    const balanceHex: string = await window.ethereum.request({
+    const balanceHex = await window.ethereum.request({
       method: 'eth_getBalance',
       params: [address, 'latest'],
-    });
+    }) as string;
     const balance = formatEther(BigInt(balanceHex));
 
     // Step 4: NOW create ethers provider and signer (after connection is established)
@@ -89,14 +106,14 @@ export async function connectWallet(): Promise<WalletConnectionResult> {
       provider,
       balance: parseFloat(balance).toFixed(4),
     };
-  } catch (error: any) {
-    if (error.code === 4001) {
+  } catch (error: unknown) {
+    if (isProviderError(error) && error.code === 4001) {
       throw new Error('Connection rejected. Please approve the connection in MetaMask.');
     }
-    if (error.code === -32002) {
+    if (isProviderError(error) && error.code === -32002) {
       throw new Error('MetaMask is already processing a request. Please check MetaMask and try again.');
     }
-    throw new Error(error.message || 'Failed to connect wallet.');
+    throw new Error(isProviderError(error) && error.message ? error.message : 'Failed to connect wallet.');
   }
 }
 
@@ -113,9 +130,9 @@ export async function switchToBNBChain(): Promise<void> {
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: CHAIN_CONFIG.chainId }],
     });
-  } catch (switchError: any) {
+  } catch (switchError: unknown) {
     // Chain not added - add it
-    if (switchError.code === 4902) {
+    if (isProviderError(switchError) && switchError.code === 4902) {
       try {
         await window.ethereum.request({
           method: 'wallet_addEthereumChain',
@@ -124,7 +141,7 @@ export async function switchToBNBChain(): Promise<void> {
       } catch {
         throw new Error('Failed to add BNB Chain to wallet.');
       }
-    } else if (switchError.code === 4001) {
+    } else if (isProviderError(switchError) && switchError.code === 4001) {
       throw new Error('Chain switch rejected by user.');
     } else {
       throw new Error('Failed to switch to BNB Chain.');
@@ -143,8 +160,8 @@ export async function signAuthChallenge(signer: JsonRpcSigner): Promise<string> 
   try {
     const signature = await signer.signMessage(message);
     return signature;
-  } catch (error: any) {
-    if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+  } catch (error: unknown) {
+    if (isProviderError(error) && (error.code === 4001 || error.code === 'ACTION_REJECTED')) {
       throw new Error('Signature rejected by user.');
     }
     throw new Error('Failed to sign authentication challenge.');
@@ -169,7 +186,8 @@ export function setupWalletListeners(
 ): () => void {
   if (!isWalletAvailable()) return () => {};
 
-  const handleAccountsChanged = (accounts: string[]) => {
+  const handleAccountsChanged = (value: string | string[]) => {
+    const accounts = Array.isArray(value) ? value : [value];
     if (accounts.length === 0) {
       onDisconnect();
     } else {
@@ -177,7 +195,8 @@ export function setupWalletListeners(
     }
   };
 
-  const handleChainChanged = (chainId: string) => {
+  const handleChainChanged = (value: string | string[]) => {
+    const chainId = Array.isArray(value) ? value[0] : value;
     onChainChange(chainId);
   };
 
@@ -198,7 +217,7 @@ export async function checkExistingConnection(): Promise<string | null> {
   if (!isWalletAvailable()) return null;
 
   try {
-    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' }) as string[];
     if (accounts && accounts.length > 0) {
       return accounts[0];
     }
@@ -211,6 +230,6 @@ export async function checkExistingConnection(): Promise<string | null> {
 // Extend Window interface for TypeScript
 declare global {
   interface Window {
-    ethereum: any;
+    ethereum: EthereumProvider;
   }
 }

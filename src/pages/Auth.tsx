@@ -8,9 +8,10 @@ import './Auth.css';
 
 export default function Auth() {
   const [authStep, setAuthStep] = useState(1);
+  const [challengeTimestamp] = useState(() => Math.floor(Date.now() / 1000));
+  const [challengeNonce] = useState(() => Math.random().toString(36).substring(2, 10));
   const navigate = useNavigate();
   const {
-    address,
     displayAddress,
     chainId,
     balance,
@@ -48,7 +49,7 @@ export default function Auth() {
     }
   };
 
-  const isWrongChain = connected && chainId !== 97 && chainId !== 56;
+  const isWrongChain = connected && chainId !== 56;
 
   return (
     <div className="auth-page">
@@ -183,8 +184,8 @@ export default function Auth() {
                 lineHeight: 1.8,
               }}>
                 AgentFi Authentication{'\n'}
-                Timestamp: {Math.floor(Date.now() / 1000)}{'\n'}
-                Nonce: {Math.random().toString(36).substring(2, 10)}{'\n\n'}
+                Timestamp: {challengeTimestamp}{'\n'}
+                Nonce: {challengeNonce}{'\n\n'}
                 Sign this message to verify ownership.{'\n'}
                 This does not cost any gas.
               </div>

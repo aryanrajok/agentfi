@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "compile": "hardhat compile",
+    "deploy": "node scripts/deploy.cjs",
+    "deploy:mainnet": "node scripts/deploy.cjs",
+    "deploy:web3": "node scripts/deployWeb3.cjs"
   },
   "dependencies": {
     "ethers": "^6.16.0",

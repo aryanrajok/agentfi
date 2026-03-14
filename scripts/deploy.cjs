@@ -13,8 +13,8 @@ async function main() {
     fs.readFileSync("./artifacts/contracts/AFIToken.sol/AFIToken.json", "utf-8")
   );
 
-  // Connect to BNB Testnet
-  const RPC = "https://data-seed-prebsc-1-s1.binance.org:8545/";
+  // Connect to BNB Mainnet
+  const RPC = "https://bsc-dataseed.binance.org/";
   const provider = new ethers.JsonRpcProvider(RPC);
 
   // Check for private key
@@ -41,11 +41,10 @@ async function main() {
     });
     const data = await res.json();
     const balance = ethers.formatEther(data.result || "0x0");
-    console.log("Balance:", balance, "tBNB");
+    console.log("Balance:", balance, "BNB");
 
     if (parseFloat(balance) === 0) {
-      console.log("\nERROR: No tBNB balance. Get testnet BNB from:");
-      console.log("https://www.bnbchain.org/en/testnet-faucet");
+      console.log("\nERROR: No BNB balance. Fund your deployer address with BNB to cover gas fees.");
       process.exit(1);
     }
   } catch (e) {
@@ -79,8 +78,8 @@ async function main() {
   console.log("\n=======================================");
   console.log("  AgentFi Deployment Complete!");
   console.log("=======================================");
-  console.log("  Network:       BNB Smart Chain Testnet");
-  console.log("  Chain ID:      97");
+  console.log("  Network:       BNB Smart Chain Mainnet");
+  console.log("  Chain ID:      56");
   console.log("  AgentRegistry:", registryAddr);
   console.log("  CommitReveal: ", commitRevealAddr);
   console.log("  AFIToken:     ", afiTokenAddr);
@@ -88,8 +87,8 @@ async function main() {
 
   // Write addresses + ABIs for frontend
   const config = {
-    network: "bscTestnet",
-    chainId: 97,
+    network: "bscMainnet",
+    chainId: 56,
     deployedAt: new Date().toISOString(),
     deployer: wallet.address,
     contracts: {

@@ -1,11 +1,12 @@
-import { Contract, JsonRpcProvider, BrowserProvider, formatEther, parseEther, keccak256, solidityPacked, randomBytes, hexlify } from 'ethers';
+import { Contract, JsonRpcProvider, formatEther, parseEther, keccak256, solidityPacked, randomBytes, hexlify } from 'ethers';
+import type { Signer } from 'ethers';
 import contractsConfig from './contracts.json';
 
 // BNB Chain RPCs
-const BNB_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
+const BNB_MAINNET_RPC = 'https://bsc-dataseed.binance.org/';
 
 // Read-only provider for fetching data
-const readProvider = new JsonRpcProvider(BNB_TESTNET_RPC);
+const readProvider = new JsonRpcProvider(BNB_MAINNET_RPC);
 
 /**
  * Check if contracts are deployed
@@ -48,7 +49,7 @@ export function getReadContracts() {
 /**
  * Get writable contract instances (requires connected signer)
  */
-export async function getWriteContracts(signer: any) {
+export async function getWriteContracts(signer: Signer) {
   if (!areContractsDeployed()) return null;
 
   const registry = new Contract(
@@ -155,7 +156,7 @@ export async function fetchTotalValueManaged(): Promise<string> {
  * Register a new agent onchain
  */
 export async function registerAgentOnchain(
-  signer: any,
+  signer: Signer,
   name: string,
   strategy: string,
   maxPositionSize: number,
@@ -185,7 +186,7 @@ export async function registerAgentOnchain(
  * Commit an action hash
  */
 export async function commitAction(
-  signer: any,
+  signer: Signer,
   agentId: string,
   action: string,
   protocol: string,
@@ -219,7 +220,7 @@ export async function commitAction(
  * Reveal a committed action
  */
 export async function revealAction(
-  signer: any,
+  signer: Signer,
   commitId: string,
   action: string,
   protocol: string,
@@ -295,7 +296,7 @@ export async function fetchClaimableRewards(address: string): Promise<string> {
 /**
  * Claim AFI rewards
  */
-export async function claimRewards(signer: any): Promise<string> {
+export async function claimRewards(signer: Signer): Promise<string> {
   const contracts = await getWriteContracts(signer);
   if (!contracts) throw new Error('Contracts not deployed');
 
@@ -315,15 +316,15 @@ export async function fetchChainData() {
     return {
       blockNumber,
       gasPrice: gasPrice.gasPrice ? formatEther(gasPrice.gasPrice) : '0',
-      network: 'BNB Smart Chain Testnet',
-      chainId: 97,
+      network: 'BNB Smart Chain',
+      chainId: 56,
     };
   } catch {
     return {
       blockNumber: 0,
       gasPrice: '0',
-      network: 'BNB Smart Chain Testnet',
-      chainId: 97,
+      network: 'BNB Smart Chain',
+      chainId: 56,
     };
   }
 }

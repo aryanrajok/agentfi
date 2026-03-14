@@ -1,6 +1,6 @@
 {
-  "network": "bscTestnet",
-  "chainId": 97,
+  "network": "bscMainnet",
+  "chainId": 56,
   "deployedAt": "NOT_DEPLOYED_YET",
   "deployer": "",
   "contracts": {

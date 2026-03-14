@@ -2,17 +2,21 @@ const { Web3 } = require("web3");
 const fs = require("fs");
 
 async function main() {
-  const web3 = new Web3("https://data-seed-prebsc-1-s1.binance.org:8545/");
-  const pk = process.env.DEPLOYER_PRIVATE_KEY || "0x38098bc3e995127017d289861d664606ed0872841696bc2ebb634aca443cc1d0";
+  const web3 = new Web3("https://bsc-dataseed.binance.org/");
+  const pk = process.env.DEPLOYER_PRIVATE_KEY;
+  if (!pk) {
+    console.log("ERROR: Set DEPLOYER_PRIVATE_KEY environment variable");
+    process.exit(1);
+  }
   const account = web3.eth.accounts.privateKeyToAccount(pk);
   web3.eth.accounts.wallet.add(account);
 
   console.log("Deployer:", account.address);
   const balance = await web3.eth.getBalance(account.address);
-  console.log("Balance:", web3.utils.fromWei(balance, 'ether'), "tBNB");
+  console.log("Balance:", web3.utils.fromWei(balance, 'ether'), "BNB");
 
   if (balance === 0n) {
-    console.log("Not enough tBNB to deploy.");
+    console.log("Not enough BNB to deploy. Fund your deployer address with BNB to cover gas fees.");
     return;
   }
 
@@ -45,8 +49,8 @@ async function main() {
     const afi = await deployContract("AFIToken");
 
     const config = {
-      network: "bscTestnet",
-      chainId: 97,
+      network: "bscMainnet",
+      chainId: 56,
       deployedAt: new Date().toISOString(),
       deployer: account.address,
       contracts: {
