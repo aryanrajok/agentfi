@@ -100,10 +100,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           get().disconnect();
         },
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       set({
         loading: false,
-        error: error.message || 'Failed to connect wallet',
+        error: error instanceof Error ? error.message : 'Failed to connect wallet',
       });
       throw error;
     }
@@ -133,8 +133,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const signature = await signAuthChallenge(signer);
       set({ authenticated: true, loading: false });
       return signature;
-    } catch (error: any) {
-      set({ loading: false, error: error.message });
+    } catch (error: unknown) {
+      set({ loading: false, error: error instanceof Error ? error.message : 'Authentication failed' });
       throw error;
     }
   },
@@ -152,8 +152,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         provider: result.provider,
         loading: false,
       });
-    } catch (error: any) {
-      set({ loading: false, error: error.message });
+    } catch (error: unknown) {
+      set({ loading: false, error: error instanceof Error ? error.message : 'Failed to switch chain' });
     }
   },
 

@@ -1,4 +1,4 @@
-import { Contract, JsonRpcProvider, BrowserProvider, formatEther, parseEther, keccak256, solidityPacked, randomBytes, hexlify } from 'ethers';
+import { Contract, JsonRpcProvider, JsonRpcSigner, formatEther, parseEther, keccak256, solidityPacked, randomBytes, hexlify } from 'ethers';
 import contractsConfig from './contracts.json';
 
 // BNB Chain RPCs
@@ -48,7 +48,7 @@ export function getReadContracts() {
 /**
  * Get writable contract instances (requires connected signer)
  */
-export async function getWriteContracts(signer: any) {
+export async function getWriteContracts(signer: JsonRpcSigner) {
   if (!areContractsDeployed()) return null;
 
   const registry = new Contract(
@@ -155,7 +155,7 @@ export async function fetchTotalValueManaged(): Promise<string> {
  * Register a new agent onchain
  */
 export async function registerAgentOnchain(
-  signer: any,
+  signer: JsonRpcSigner,
   name: string,
   strategy: string,
   maxPositionSize: number,
@@ -185,7 +185,7 @@ export async function registerAgentOnchain(
  * Commit an action hash
  */
 export async function commitAction(
-  signer: any,
+  signer: JsonRpcSigner,
   agentId: string,
   action: string,
   protocol: string,
@@ -219,7 +219,7 @@ export async function commitAction(
  * Reveal a committed action
  */
 export async function revealAction(
-  signer: any,
+  signer: JsonRpcSigner,
   commitId: string,
   action: string,
   protocol: string,
@@ -295,7 +295,7 @@ export async function fetchClaimableRewards(address: string): Promise<string> {
 /**
  * Claim AFI rewards
  */
-export async function claimRewards(signer: any): Promise<string> {
+export async function claimRewards(signer: JsonRpcSigner): Promise<string> {
   const contracts = await getWriteContracts(signer);
   if (!contracts) throw new Error('Contracts not deployed');
 
