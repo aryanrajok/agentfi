@@ -1,6 +1,8 @@
 import { BrowserProvider, formatEther, JsonRpcSigner } from 'ethers';
 
-// BNB Chain configuration
+// ─── Network-aware chain configuration ───
+const isMainnet = import.meta.env.VITE_NETWORK === 'mainnet';
+
 export const BNB_CHAIN_CONFIG = {
   chainId: '0x38', // 56 in hex
   chainName: 'BNB Smart Chain',
@@ -9,7 +11,7 @@ export const BNB_CHAIN_CONFIG = {
     symbol: 'BNB',
     decimals: 18,
   },
-  rpcUrls: ['https://bsc-dataseed.binance.org/'],
+  rpcUrls: [import.meta.env.VITE_BNB_MAINNET_RPC || 'https://bsc-dataseed.binance.org/'],
   blockExplorerUrls: ['https://bscscan.com/'],
 };
 
@@ -21,12 +23,13 @@ export const BNB_TESTNET_CONFIG = {
     symbol: 'tBNB',
     decimals: 18,
   },
-  rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
+  rpcUrls: [import.meta.env.VITE_BNB_TESTNET_RPC || 'https://data-seed-prebsc-1-s1.binance.org:8545/'],
   blockExplorerUrls: ['https://testnet.bscscan.com/'],
 };
 
-// Use testnet for development
-const CHAIN_CONFIG = BNB_TESTNET_CONFIG;
+// Use the configured network
+const CHAIN_CONFIG = isMainnet ? BNB_CHAIN_CONFIG : BNB_TESTNET_CONFIG;
+export const TARGET_CHAIN_ID = isMainnet ? 56 : 97;
 
 export interface WalletConnectionResult {
   address: string;
@@ -45,7 +48,6 @@ export function isWalletAvailable(): boolean {
 
 /**
  * Connect to MetaMask or injected wallet
- * Uses window.ethereum.request DIRECTLY first, then wraps with ethers.js
  */
 export async function connectWallet(): Promise<WalletConnectionResult> {
   if (!isWalletAvailable()) {
@@ -53,8 +55,6 @@ export async function connectWallet(): Promise<WalletConnectionResult> {
   }
 
   try {
-    // Step 1: Request accounts directly via window.ethereum
-    // This triggers the MetaMask popup
     const accounts: string[] = await window.ethereum.request({
       method: 'eth_requestAccounts',
     });
@@ -65,20 +65,17 @@ export async function connectWallet(): Promise<WalletConnectionResult> {
 
     const address = accounts[0];
 
-    // Step 2: Get chain ID directly
     const chainIdHex: string = await window.ethereum.request({
       method: 'eth_chainId',
     });
     const chainId = parseInt(chainIdHex, 16);
 
-    // Step 3: Get balance directly
     const balanceHex: string = await window.ethereum.request({
       method: 'eth_getBalance',
       params: [address, 'latest'],
     });
     const balance = formatEther(BigInt(balanceHex));
 
-    // Step 4: NOW create ethers provider and signer (after connection is established)
     const provider = new BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
 
@@ -101,7 +98,7 @@ export async function connectWallet(): Promise<WalletConnectionResult> {
 }
 
 /**
- * Switch to BNB Chain (or add it if not configured)
+ * Switch to the target BNB Chain (mainnet or testnet based on env)
  */
 export async function switchToBNBChain(): Promise<void> {
   if (!isWalletAvailable()) {
@@ -114,7 +111,6 @@ export async function switchToBNBChain(): Promise<void> {
       params: [{ chainId: CHAIN_CONFIG.chainId }],
     });
   } catch (switchError: any) {
-    // Chain not added - add it
     if (switchError.code === 4902) {
       try {
         await window.ethereum.request({
@@ -160,6 +156,14 @@ export function truncateAddress(address: string): string {
 }
 
 /**
+ * Get explorer URL for a transaction or address
+ */
+export function getExplorerUrl(hashOrAddress: string, type: 'tx' | 'address' = 'address'): string {
+  const base = isMainnet ? 'https://bscscan.com' : 'https://testnet.bscscan.com';
+  return `${base}/${type}/${hashOrAddress}`;
+}
+
+/**
  * Listen for wallet events (account change, chain change, disconnect)
  */
 export function setupWalletListeners(
@@ -184,7 +188,6 @@ export function setupWalletListeners(
   window.ethereum.on('accountsChanged', handleAccountsChanged);
   window.ethereum.on('chainChanged', handleChainChanged);
 
-  // Return cleanup function
   return () => {
     window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
     window.ethereum.removeListener('chainChanged', handleChainChanged);
