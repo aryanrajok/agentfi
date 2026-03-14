@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Environment variables (NEVER commit secrets)
+.env
+.env.local
+.env.production
+
+# Hardhat
+artifacts/
+cache/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
