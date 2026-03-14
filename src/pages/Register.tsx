@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import { useWalletStore } from '../stores/stores';
 import { useAgentRegistry } from '../stores/agentRegistry';
-import { isWalletAvailable } from '../data/wallet';
+import { isWalletAvailable, getExplorerUrl } from '../data/wallet';
+import { registerAgentOnchain, areContractsDeployed } from '../data/contractService';
 import './Register.css';
 
 export default function Register() {
@@ -15,12 +16,15 @@ export default function Register() {
   const [maxPosition, setMaxPosition] = useState(1000);
   const [autoCompound, setAutoCompound] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [txHash, setTxHash] = useState('');
+  const [regError, setRegError] = useState('');
   const navigate = useNavigate();
-  const { connected, displayAddress, address, balance, chainId, loading, error, connect, clearError } = useWalletStore();
+  const { connected, displayAddress, address, balance, chainId, loading, error, connect, clearError, signer } = useWalletStore();
   const { addAgent } = useAgentRegistry();
 
   const hasWallet = isWalletAvailable();
   const currencySymbol = chainId === 56 ? 'BNB' : chainId === 97 ? 'tBNB' : 'ETH';
+  const contractsLive = areContractsDeployed();
 
   const handleConnect = async () => {
     clearError();
@@ -33,26 +37,51 @@ export default function Register() {
 
   const handleRegister = async () => {
     setRegistering(true);
+    setRegError('');
+    setTxHash('');
 
-    // Generate a public key from the address
+    const agentDisplayName = agentName || `Agent #${Date.now().toString(36)}`;
     const publicKey = 'ed25519:' + address.slice(2, 18);
 
-    // Save the agent to local registry
-    addAgent({
-      name: agentName || `Agent #${Date.now().toString(36)}`,
-      strategy,
-      maxPositionSize: maxPosition,
-      autoCompound,
-      ownerAddress: address,
-      publicKey,
-    });
+    try {
+      // If contracts are deployed, register onchain
+      if (contractsLive && signer) {
+        const result = await registerAgentOnchain(
+          signer,
+          agentDisplayName,
+          strategy.split('(')[0].trim(),
+          maxPosition,
+        );
+        setTxHash(result.txHash);
 
-    // Small delay to simulate transaction
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRegistering(false);
+        // Also save locally for fast UI access
+        addAgent({
+          name: agentDisplayName,
+          strategy,
+          maxPositionSize: maxPosition,
+          autoCompound,
+          ownerAddress: address,
+          publicKey,
+        });
+      } else {
+        // Contracts not deployed — save locally only (with notice)
+        addAgent({
+          name: agentDisplayName,
+          strategy,
+          maxPositionSize: maxPosition,
+          autoCompound,
+          ownerAddress: address,
+          publicKey,
+        });
+      }
 
-    // Navigate to dashboard
-    navigate('/dashboard/agents');
+      setRegistering(false);
+      setStep(6); // Success step
+    } catch (err: any) {
+      console.error('Registration failed:', err);
+      setRegError(err.message || 'Registration failed');
+      setRegistering(false);
+    }
   };
 
   return (
@@ -72,7 +101,7 @@ export default function Register() {
           </div>
 
           {/* Error Display */}
-          {error && (
+          {(error || regError) && (
             <div style={{
               background: 'var(--red-dim)',
               border: '1px solid rgba(255,68,68,0.3)',
@@ -82,8 +111,8 @@ export default function Register() {
               fontSize: 13,
               color: 'var(--red)',
             }}>
-              ⚠ {error}
-              <button onClick={clearError} style={{ float: 'right', background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer' }}>✕</button>
+              ⚠ {error || regError}
+              <button onClick={() => { clearError(); setRegError(''); }} style={{ float: 'right', background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer' }}>✕</button>
             </div>
           )}
 
@@ -140,6 +169,11 @@ export default function Register() {
                   <span className="font-data text-tertiary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
                     Balance: {balance} {currencySymbol}
                   </span>
+                  {!contractsLive && (
+                    <span className="text-amber" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                      ⚠ Contracts not deployed — agent will be saved locally only
+                    </span>
+                  )}
                   <button className="btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={() => setStep(2)}>
                     Continue →
                   </button>
@@ -255,9 +289,17 @@ Agent ID:    ${address.slice(0, 22)}`}
                 <div className="reg-summary-row"><span className="text-tertiary">Max Position</span><span className="font-data">{maxPosition.toLocaleString()} USDT</span></div>
                 <div className="reg-summary-row"><span className="text-tertiary">Auto-compound</span><span className="font-data">{autoCompound ? 'Yes' : 'No'}</span></div>
                 <div className="reg-summary-row"><span className="text-tertiary">Balance</span><span className="font-data text-green">{balance} {currencySymbol}</span></div>
+                <div className="reg-summary-row">
+                  <span className="text-tertiary">Registration</span>
+                  <span className="font-data" style={{ color: contractsLive ? 'var(--green)' : 'var(--amber)' }}>
+                    {contractsLive ? '● Onchain (real tx)' : '○ Local only (contracts not deployed)'}
+                  </span>
+                </div>
               </div>
               <p className="text-tertiary" style={{ fontSize: 12, marginBottom: 12 }}>
-                This will register your agent in the AgentFi system.
+                {contractsLive
+                  ? 'This will send a transaction to register your agent on BNB Chain.'
+                  : 'Contracts are not yet deployed. Your agent will be saved locally.'}
               </p>
               <button
                 className="btn-primary btn-lg"
@@ -265,7 +307,38 @@ Agent ID:    ${address.slice(0, 22)}`}
                 onClick={handleRegister}
                 disabled={registering}
               >
-                {registering ? 'Registering...' : 'Register Agent →'}
+                {registering ? 'Registering onchain...' : 'Register Agent →'}
+              </button>
+            </div>
+          )}
+
+          {/* Step 6: Success */}
+          {step === 6 && (
+            <div className="reg-step" style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 12, color: 'var(--green)' }}>✓</div>
+              <h2 className="font-display text-green" style={{ fontSize: 24 }}>Agent Registered!</h2>
+              <p className="text-secondary" style={{ marginTop: 8 }}>
+                {txHash
+                  ? 'Your agent has been registered onchain.'
+                  : 'Your agent has been saved locally.'}
+              </p>
+              {txHash && (
+                <a
+                  href={getExplorerUrl(txHash, 'tx')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-data text-cyan"
+                  style={{ fontSize: 12, display: 'block', marginTop: 8, wordBreak: 'break-all' }}
+                >
+                  View transaction on BscScan →
+                </a>
+              )}
+              <button
+                className="btn-primary"
+                style={{ width: '100%', marginTop: 24 }}
+                onClick={() => navigate('/dashboard/agents')}
+              >
+                View My Agents →
               </button>
             </div>
           )}

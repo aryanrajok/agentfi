@@ -1,9 +1,18 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWalletStore } from '../stores/stores';
 import { useAgentRegistry } from '../stores/agentRegistry';
 import { useCountUp } from '../hooks/hooks';
 import { Wallet, Bot, GitBranch, Star, Plus, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  fetchCommitRevealStats,
+  fetchAFIBalance,
+  fetchClaimableRewards,
+  areContractsDeployed,
+  EXPLORER_URL,
+  CURRENCY_SYMBOL,
+} from '../data/contractService';
 import './Overview.css';
 
 const stagger = {
@@ -20,6 +29,13 @@ export default function Overview() {
   const { agents } = useAgentRegistry();
   const navigate = useNavigate();
 
+  const contractsLive = areContractsDeployed();
+
+  // Onchain data state
+  const [commitStats, setCommitStats] = useState({ commits: 0, reveals: 0, executions: 0 });
+  const [afiBalance, setAfiBalance] = useState('0');
+  const [claimable, setClaimable] = useState('0');
+
   const myAgents = connected
     ? agents.filter(a => a.ownerAddress.toLowerCase() === address.toLowerCase())
     : [];
@@ -29,10 +45,30 @@ export default function Overview() {
   const walletBalance = parseFloat(balance || '0');
   const animatedBalance = useCountUp(walletBalance, 800);
 
-  const currencySymbol = chainId === 56 ? 'BNB' : chainId === 97 ? 'tBNB' : 'ETH';
-  const scanUrl = chainId === 97
-    ? `https://testnet.bscscan.com/address/${address}`
-    : `https://bscscan.com/address/${address}`;
+  const currencySymbol = chainId === 56 ? 'BNB' : chainId === 97 ? 'tBNB' : CURRENCY_SYMBOL;
+  const scanUrl = `${EXPLORER_URL}/address/${address}`;
+
+  // Fetch onchain data
+  useEffect(() => {
+    if (!connected || !address || !contractsLive) return;
+
+    const load = async () => {
+      try {
+        const [stats, afi, claim] = await Promise.all([
+          fetchCommitRevealStats(),
+          fetchAFIBalance(address),
+          fetchClaimableRewards(address),
+        ]);
+        setCommitStats(stats);
+        setAfiBalance(afi);
+        setClaimable(claim);
+      } catch (err) {
+        console.error('Failed to load overview data:', err);
+      }
+    };
+
+    load();
+  }, [connected, address, contractsLive]);
 
   // If not connected - show connect prompt
   if (!connected) {
@@ -48,6 +84,10 @@ export default function Overview() {
       </motion.div>
     );
   }
+
+  const totalActions = commitStats.commits + commitStats.reveals;
+  const afiDisplay = parseFloat(afiBalance).toFixed(2);
+  const claimableDisplay = parseFloat(claimable).toFixed(2);
 
   // Connected - show real wallet data
   return (
@@ -85,8 +125,8 @@ export default function Overview() {
 
         <motion.div className="overview-stat-card card" variants={fadeUp}>
           <span className="stat-card-label text-secondary">Onchain Actions</span>
-          <span className="stat-card-value font-display text-gold">0</span>
-          <span className="stat-card-sub">Commits: 0 · Reveals: 0</span>
+          <span className="stat-card-value font-display text-gold">{totalActions}</span>
+          <span className="stat-card-sub">Commits: {commitStats.commits} · Reveals: {commitStats.reveals}</span>
           <button
             className="stat-card-action"
             onClick={() => navigate('/dashboard/commit')}
@@ -97,8 +137,12 @@ export default function Overview() {
 
         <motion.div className="overview-stat-card card" variants={fadeUp}>
           <span className="stat-card-label text-secondary">Rewards Earned</span>
-          <span className="stat-card-value font-display" style={{ color: 'var(--gold)' }}>0 AFI</span>
-          <span className="stat-card-sub">No rewards claimable</span>
+          <span className="stat-card-value font-display" style={{ color: 'var(--gold)' }}>
+            {afiDisplay} AFI
+          </span>
+          <span className="stat-card-sub">
+            {parseFloat(claimable) > 0 ? `${claimableDisplay} AFI claimable` : 'No rewards claimable'}
+          </span>
           <button
             className="stat-card-action"
             onClick={() => navigate('/dashboard/rewards')}
@@ -120,37 +164,55 @@ export default function Overview() {
                 <span className="gs-step-desc text-tertiary">Wallet connected: {displayAddress}</span>
               </div>
             </div>
-            <div className="gs-step">
-              <div className="gs-step-number">2</div>
+            <div className={`gs-step ${walletBalance > 0 ? 'gs-step-done' : ''}`}>
+              <div className={`gs-step-number ${walletBalance > 0 ? 'gs-done' : ''}`}>{walletBalance > 0 ? '✓' : '2'}</div>
               <div className="gs-step-content">
                 <span className="gs-step-title">Get Testnet BNB</span>
                 <span className="gs-step-desc text-tertiary">
-                  You need tBNB to pay gas fees.{' '}
-                  <a href="https://www.bnbchain.org/en/testnet-faucet" target="_blank" rel="noopener noreferrer" className="text-green">
-                    Get free tBNB →
-                  </a>
+                  {walletBalance > 0 ? (
+                    `Balance: ${walletBalance.toFixed(4)} ${currencySymbol}`
+                  ) : (
+                    <>
+                      You need tBNB to pay gas fees.{' '}
+                      <a href="https://www.bnbchain.org/en/testnet-faucet" target="_blank" rel="noopener noreferrer" className="text-green">
+                        Get free tBNB →
+                      </a>
+                    </>
+                  )}
                 </span>
               </div>
             </div>
-            <div className="gs-step">
-              <div className="gs-step-number">3</div>
+            <div className={`gs-step ${agentCount > 0 ? 'gs-step-done' : ''}`}>
+              <div className={`gs-step-number ${agentCount > 0 ? 'gs-done' : ''}`}>{agentCount > 0 ? '✓' : '3'}</div>
               <div className="gs-step-content">
                 <span className="gs-step-title">Register Your First Agent</span>
-                <span className="gs-step-desc text-tertiary">Create an AI agent with a name, strategy, and max position size</span>
+                <span className="gs-step-desc text-tertiary">
+                  {agentCount > 0
+                    ? `${agentCount} agent(s) registered`
+                    : 'Create an AI agent with a name, strategy, and max position size'}
+                </span>
               </div>
             </div>
-            <div className="gs-step">
-              <div className="gs-step-number">4</div>
+            <div className={`gs-step ${commitStats.commits > 0 ? 'gs-step-done' : ''}`}>
+              <div className={`gs-step-number ${commitStats.commits > 0 ? 'gs-done' : ''}`}>{commitStats.commits > 0 ? '✓' : '4'}</div>
               <div className="gs-step-content">
                 <span className="gs-step-title">Submit a Commit-Reveal Action</span>
-                <span className="gs-step-desc text-tertiary">Your agent commits a hashed action, waits N blocks, then reveals it onchain</span>
+                <span className="gs-step-desc text-tertiary">
+                  {commitStats.commits > 0
+                    ? `${commitStats.commits} commits, ${commitStats.reveals} reveals`
+                    : 'Your agent commits a hashed action, waits N blocks, then reveals it onchain'}
+                </span>
               </div>
             </div>
-            <div className="gs-step">
-              <div className="gs-step-number">5</div>
+            <div className={`gs-step ${parseFloat(afiBalance) > 0 ? 'gs-step-done' : ''}`}>
+              <div className={`gs-step-number ${parseFloat(afiBalance) > 0 ? 'gs-done' : ''}`}>{parseFloat(afiBalance) > 0 ? '✓' : '5'}</div>
               <div className="gs-step-content">
                 <span className="gs-step-title">Earn AFI Rewards</span>
-                <span className="gs-step-desc text-tertiary">Successful actions earn AFI tokens and reputation points</span>
+                <span className="gs-step-desc text-tertiary">
+                  {parseFloat(afiBalance) > 0
+                    ? `Earned: ${afiDisplay} AFI`
+                    : 'Successful actions earn AFI tokens and reputation points'}
+                </span>
               </div>
             </div>
           </div>
@@ -178,6 +240,12 @@ export default function Overview() {
               <span className="font-data" style={{ fontSize: 12 }}>{chainId}</span>
             </div>
             <div className="wallet-detail-row">
+              <span className="text-secondary" style={{ fontSize: 12 }}>CONTRACTS</span>
+              <span className="font-data" style={{ fontSize: 12, color: contractsLive ? 'var(--green)' : 'var(--amber)' }}>
+                {contractsLive ? '● Deployed' : '○ Not deployed'}
+              </span>
+            </div>
+            <div className="wallet-detail-row">
               <span className="text-secondary" style={{ fontSize: 12 }}>EXPLORER</span>
               <a
                 href={scanUrl}
@@ -199,9 +267,13 @@ export default function Overview() {
           <h3 className="card-title">Active Pipeline</h3>
           <div className="pipeline-empty">
             <GitBranch size={32} strokeWidth={1} />
-            <p className="text-tertiary" style={{ fontSize: 13 }}>No active commit-reveal actions.</p>
+            <p className="text-tertiary" style={{ fontSize: 13 }}>
+              {commitStats.commits > 0
+                ? `${commitStats.commits} total commits · ${commitStats.reveals} reveals · ${commitStats.executions} executed`
+                : 'No active commit-reveal actions.'}
+            </p>
             <button className="stat-card-action" onClick={() => navigate('/dashboard/commit')}>
-              Start your first commit →
+              {commitStats.commits > 0 ? 'View commit-reveal →' : 'Start your first commit →'}
             </button>
           </div>
         </motion.div>
@@ -210,8 +282,16 @@ export default function Overview() {
           <h3 className="card-title">Recent Actions</h3>
           <div className="pipeline-empty">
             <Bot size={32} strokeWidth={1} />
-            <p className="text-tertiary" style={{ fontSize: 13 }}>No onchain actions yet.</p>
-            <p className="text-tertiary" style={{ fontSize: 11 }}>Register an agent and submit your first action to see it here.</p>
+            <p className="text-tertiary" style={{ fontSize: 13 }}>
+              {totalActions > 0
+                ? `${totalActions} onchain actions performed.`
+                : 'No onchain actions yet.'}
+            </p>
+            <p className="text-tertiary" style={{ fontSize: 11 }}>
+              {totalActions > 0
+                ? 'View your activity log for full details.'
+                : 'Register an agent and submit your first action to see it here.'}
+            </p>
           </div>
         </motion.div>
       </div>

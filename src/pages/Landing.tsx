@@ -106,14 +106,14 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ===== FEATURED IN (Chime-style press bar) ===== */}
+      {/* ===== POWERED BY (WDK branding) ===== */}
       <section className="featured-bar">
-        <span className="featured-label">Featured in:</span>
+        <span className="featured-label">Powered by:</span>
         <div className="featured-logos">
-          <span className="press-logo">CoinDesk</span>
-          <span className="press-logo">The Block</span>
-          <span className="press-logo">DeFi Pulse</span>
-          <span className="press-logo">Bankless</span>
+          <span className="press-logo">Tether WDK</span>
+          <span className="press-logo">BNB Chain</span>
+          <span className="press-logo">OpenZeppelin</span>
+          <span className="press-logo">ethers.js</span>
         </div>
       </section>
 
@@ -274,10 +274,10 @@ export default function Landing() {
           </div>
           <div className="footer-links">
             <a href="#how">How it Works</a>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>
-            <a href="https://discord.com" target="_blank" rel="noopener noreferrer">Discord</a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">Twitter</a>
-            <a href="https://bscscan.com" target="_blank" rel="noopener noreferrer">Smart Contracts</a>
+            <a href="https://docs.wdk.tether.io" target="_blank" rel="noopener noreferrer">WDK Docs</a>
+            <a href="https://docs.wdk.tether.io/ai/mcp-toolkit" target="_blank" rel="noopener noreferrer">MCP Toolkit</a>
+            <a href="https://discord.gg/arYXDhHB2w" target="_blank" rel="noopener noreferrer">Discord</a>
+            <a href="https://testnet.bscscan.com" target="_blank" rel="noopener noreferrer">Smart Contracts</a>
           </div>
         </div>
         <div className="footer-bottom">
