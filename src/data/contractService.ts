@@ -1,11 +1,19 @@
-import { Contract, JsonRpcProvider, BrowserProvider, formatEther, parseEther, keccak256, solidityPacked, randomBytes, hexlify } from 'ethers';
+import { Contract, JsonRpcProvider, formatEther, parseEther, keccak256, solidityPacked, randomBytes, hexlify } from 'ethers';
 import contractsConfig from './contracts.json';
 
-// BNB Chain RPCs
-const BNB_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
+// ─── Network-aware RPC ───
+const isMainnet = import.meta.env.VITE_NETWORK === 'mainnet';
+const RPC_URL = isMainnet
+  ? (import.meta.env.VITE_BNB_MAINNET_RPC || 'https://bsc-dataseed.binance.org/')
+  : (import.meta.env.VITE_BNB_TESTNET_RPC || 'https://data-seed-prebsc-1-s1.binance.org:8545/');
+
+export const CHAIN_ID = isMainnet ? 56 : 97;
+export const NETWORK_NAME = isMainnet ? 'BNB Smart Chain' : 'BNB Smart Chain Testnet';
+export const CURRENCY_SYMBOL = isMainnet ? 'BNB' : 'tBNB';
+export const EXPLORER_URL = isMainnet ? 'https://bscscan.com' : 'https://testnet.bscscan.com';
 
 // Read-only provider for fetching data
-const readProvider = new JsonRpcProvider(BNB_TESTNET_RPC);
+const readProvider = new JsonRpcProvider(RPC_URL);
 
 /**
  * Check if contracts are deployed
@@ -14,7 +22,8 @@ export function areContractsDeployed(): boolean {
   return (
     contractsConfig.contracts.AgentRegistry.address !== '' &&
     contractsConfig.contracts.CommitReveal.address !== '' &&
-    contractsConfig.contracts.AFIToken.address !== ''
+    contractsConfig.contracts.AFIToken.address !== '' &&
+    contractsConfig.contracts.AgentRegistry.abi.length > 0
   );
 }
 
@@ -159,9 +168,9 @@ export async function registerAgentOnchain(
   name: string,
   strategy: string,
   maxPositionSize: number,
-): Promise<string> {
+): Promise<{ txHash: string; agentId: string }> {
   const contracts = await getWriteContracts(signer);
-  if (!contracts) throw new Error('Contracts not deployed');
+  if (!contracts) throw new Error('Contracts not deployed. Please deploy smart contracts first.');
 
   // Generate a random public key hash
   const publicKeyHash = keccak256(randomBytes(32));
@@ -176,6 +185,38 @@ export async function registerAgentOnchain(
   const receipt = await tx.wait();
   console.log('Agent registered! TX:', receipt.hash);
 
+  // Extract agentId from event logs
+  let agentId = '';
+  for (const log of receipt.logs) {
+    try {
+      const parsed = contracts.registry.interface.parseLog({
+        topics: [...log.topics],
+        data: log.data,
+      });
+      if (parsed && parsed.name === 'AgentRegistered') {
+        agentId = parsed.args.agentId;
+        break;
+      }
+    } catch {
+      // Not a matching event, continue
+    }
+  }
+
+  return { txHash: receipt.hash, agentId };
+}
+
+/**
+ * Deactivate an agent onchain
+ */
+export async function deactivateAgentOnchain(
+  signer: any,
+  agentId: string,
+): Promise<string> {
+  const contracts = await getWriteContracts(signer);
+  if (!contracts) throw new Error('Contracts not deployed');
+
+  const tx = await contracts.registry.deactivateAgent(agentId);
+  const receipt = await tx.wait();
   return receipt.hash;
 }
 
@@ -209,8 +250,21 @@ export async function commitAction(
   const receipt = await tx.wait();
 
   // Get commitId from event
-  const event = receipt.logs[0];
-  const commitId = event.topics[1];
+  let commitId = '';
+  for (const log of receipt.logs) {
+    try {
+      const parsed = contracts.commitReveal.interface.parseLog({
+        topics: [...log.topics],
+        data: log.data,
+      });
+      if (parsed && parsed.name === 'ActionCommitted') {
+        commitId = parsed.args.commitId;
+        break;
+      }
+    } catch {
+      // Not a matching event
+    }
+  }
 
   return { commitId, salt, txHash: receipt.hash };
 }
@@ -239,6 +293,35 @@ export async function revealAction(
 
   const receipt = await tx.wait();
   return receipt.hash;
+}
+
+/**
+ * Check if a commitment can be revealed
+ */
+export async function canRevealCommitment(commitId: string): Promise<boolean> {
+  const contracts = getReadContracts();
+  if (!contracts) return false;
+
+  try {
+    return await contracts.commitReveal.canReveal(commitId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get blocks until reveal is possible
+ */
+export async function getBlocksUntilReveal(commitId: string): Promise<number> {
+  const contracts = getReadContracts();
+  if (!contracts) return 0;
+
+  try {
+    const blocks = await contracts.commitReveal.blocksUntilReveal(commitId);
+    return Number(blocks);
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -315,15 +398,15 @@ export async function fetchChainData() {
     return {
       blockNumber,
       gasPrice: gasPrice.gasPrice ? formatEther(gasPrice.gasPrice) : '0',
-      network: 'BNB Smart Chain Testnet',
-      chainId: 97,
+      network: NETWORK_NAME,
+      chainId: CHAIN_ID,
     };
   } catch {
     return {
       blockNumber: 0,
       gasPrice: '0',
-      network: 'BNB Smart Chain Testnet',
-      chainId: 97,
+      network: NETWORK_NAME,
+      chainId: CHAIN_ID,
     };
   }
 }

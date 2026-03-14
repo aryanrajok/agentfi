@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { JsonRpcProvider } from 'ethers';
 
-// ─── BNB Chain RPC for real data ───
-const BNB_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
-const BNB_MAINNET_RPC = 'https://bsc-dataseed.binance.org/';
+// ─── Network-aware RPC ───
+const BNB_TESTNET_RPC = import.meta.env.VITE_BNB_TESTNET_RPC || 'https://data-seed-prebsc-1-s1.binance.org:8545/';
+const BNB_MAINNET_RPC = import.meta.env.VITE_BNB_MAINNET_RPC || 'https://bsc-dataseed.binance.org/';
 
 /**
  * Typewriter effect hook
@@ -25,15 +25,24 @@ export function useTypewriter(
 
       if (isPausing.current) return;
 
-      if (charIdx.current < line.length) {
-        setText((prev) => prev + line[charIdx.current]);
-        charIdx.current++;
+      const idx = charIdx.current;
+      if (idx < line.length) {
+        const ch = line[idx];
+        if (ch !== undefined) {
+          setText((prev) => prev + ch);
+        }
+        charIdx.current = idx + 1;
       } else {
         isPausing.current = true;
         setTimeout(() => {
-          lineIdx.current = (lineIdx.current + 1) % lines.length;
+          const nextLine = (lineIdx.current + 1) % lines.length;
+          lineIdx.current = nextLine;
           charIdx.current = 0;
-          setText((prev) => prev + '\n');
+          if (nextLine === 0) {
+            setText('');
+          } else {
+            setText((prev) => prev + '\n');
+          }
           isPausing.current = false;
         }, pauseMs);
       }
@@ -79,26 +88,16 @@ export function useBlockNumber() {
     
     const fetchBlock = async () => {
       try {
-        // Try testnet first, fallback to mainnet
-        const provider = new JsonRpcProvider(BNB_TESTNET_RPC);
+        const rpc = import.meta.env.VITE_NETWORK === 'mainnet' ? BNB_MAINNET_RPC : BNB_TESTNET_RPC;
+        const provider = new JsonRpcProvider(rpc);
         const block = await provider.getBlockNumber();
         if (!cancelled) setBlockNumber(block);
       } catch {
-        try {
-          const provider = new JsonRpcProvider(BNB_MAINNET_RPC);
-          const block = await provider.getBlockNumber();
-          if (!cancelled) setBlockNumber(block);
-        } catch {
-          // If both fail, show mock number
-          if (!cancelled) setBlockNumber(47291844);
-        }
+        // Silent fail - block number not critical
       }
     };
 
-    // Fetch immediately
     fetchBlock();
-
-    // Then poll every 3 seconds
     const id = setInterval(fetchBlock, 3000);
 
     return () => {
