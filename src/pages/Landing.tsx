@@ -277,7 +277,7 @@ export default function Landing() {
             <a href="https://docs.wdk.tether.io" target="_blank" rel="noopener noreferrer">WDK Docs</a>
             <a href="https://docs.wdk.tether.io/ai/mcp-toolkit" target="_blank" rel="noopener noreferrer">MCP Toolkit</a>
             <a href="https://discord.gg/arYXDhHB2w" target="_blank" rel="noopener noreferrer">Discord</a>
-            <a href="https://testnet.bscscan.com" target="_blank" rel="noopener noreferrer">Smart Contracts</a>
+            <a href="https://bscscan.com" target="_blank" rel="noopener noreferrer">Smart Contracts</a>
           </div>
         </div>
         <div className="footer-bottom">

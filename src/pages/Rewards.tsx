@@ -10,12 +10,13 @@ import {
 } from '../data/contractService';
 import { getExplorerUrl } from '../data/wallet';
 import { saveRewardClaim, logActivity } from '../data/supabaseService';
+import { useNotificationStore } from '../stores/notificationStore';
 import './Rewards.css';
 
 const fadeUp = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
 
 export default function Rewards() {
-  const { connected, address, balance, chainId, signer } = useWalletStore();
+  const { connected, address, balance, chainId, ensureSigner } = useWalletStore();
   const currencySymbol = chainId === 56 ? 'BNB' : chainId === 97 ? 'tBNB' : 'ETH';
   const contractsLive = areContractsDeployed();
 
@@ -25,6 +26,7 @@ export default function Rewards() {
   const [claiming, setClaiming] = useState(false);
   const [claimTxHash, setClaimTxHash] = useState('');
   const [error, setError] = useState('');
+  const { addNotification } = useNotificationStore();
 
   // Fetch token data when connected
   useEffect(() => {
@@ -49,12 +51,12 @@ export default function Rewards() {
   }, [connected, address, contractsLive]);
 
   const handleClaim = async () => {
-    if (!signer) return;
     setClaiming(true);
     setError('');
     setClaimTxHash('');
 
     try {
+      const signer = await ensureSigner();
       const txHash = await claimRewards(signer);
       setClaimTxHash(txHash);
 
@@ -78,6 +80,12 @@ export default function Rewards() {
       ]);
       setAfiBalance(bal);
       setClaimable(claim);
+      addNotification({
+        type: 'claim',
+        title: 'Rewards Claimed!',
+        message: `Successfully claimed ${claimable} AFI tokens.`,
+        txHash: txHash,
+      });
     } catch (err: any) {
       setError(err.message || 'Claim failed');
     }
@@ -143,12 +151,12 @@ export default function Rewards() {
 
       <div className="rewards-stats-row">
         <motion.div className="card" variants={fadeUp} initial="hidden" animate="visible">
-          <span className="stat-card-label text-secondary">AFI Tokens Earned</span>
+          <span className="stat-card-label text-secondary">AFI Token Balance</span>
           <span className="stat-card-value font-data text-gold" style={{ fontSize: 32 }}>
-            {loadingData ? <Loader size={20} className="spin" /> : `${parseFloat(afiBalance).toFixed(2)} AFI`}
+            {loadingData ? <Loader size={20} className="spin" /> : `${parseFloat(afiBalance).toLocaleString()} AFI`}
           </span>
           <span className="stat-card-sub">
-            {contractsLive ? 'From smart contract' : 'Contracts not deployed'}
+            {contractsLive ? 'On-chain balance' : 'Contracts not deployed'}
           </span>
         </motion.div>
 
@@ -158,7 +166,7 @@ export default function Rewards() {
             {loadingData ? <Loader size={20} className="spin" /> : `${parseFloat(claimable).toFixed(2)} AFI`}
           </span>
           <span className="stat-card-sub">
-            {parseFloat(claimable) > 0 ? 'Ready to claim' : 'Nothing to claim'}
+            {parseFloat(claimable) > 0 ? 'Ready to claim' : 'Complete commit-reveal cycles to earn'}
           </span>
           {parseFloat(claimable) > 0 && contractsLive && (
             <button
@@ -177,7 +185,7 @@ export default function Rewards() {
           <span className="stat-card-value font-data" style={{ fontSize: 32, color: 'var(--text-primary)' }}>
             {parseFloat(balance).toFixed(4)} {currencySymbol}
           </span>
-          <span className="stat-card-sub">Your current balance</span>
+          <span className="stat-card-sub">Available for gas fees</span>
         </motion.div>
       </div>
 

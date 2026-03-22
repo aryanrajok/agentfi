@@ -7,6 +7,7 @@ import { useAgentRegistry } from '../stores/agentRegistry';
 import { isWalletAvailable, getExplorerUrl } from '../data/wallet';
 import { registerAgentOnchain, areContractsDeployed } from '../data/contractService';
 import { saveAgent, logActivity } from '../data/supabaseService';
+import { useNotificationStore } from '../stores/notificationStore';
 import './Register.css';
 
 export default function Register() {
@@ -20,8 +21,9 @@ export default function Register() {
   const [txHash, setTxHash] = useState('');
   const [regError, setRegError] = useState('');
   const navigate = useNavigate();
-  const { connected, displayAddress, address, balance, chainId, loading, error, connect, clearError, signer } = useWalletStore();
+  const { connected, displayAddress, address, balance, chainId, loading, error, connect, clearError, ensureSigner } = useWalletStore();
   const { addAgent } = useAgentRegistry();
+  const { addNotification } = useNotificationStore();
 
   const hasWallet = isWalletAvailable();
   const currencySymbol = chainId === 56 ? 'BNB' : chainId === 97 ? 'tBNB' : 'ETH';
@@ -46,7 +48,8 @@ export default function Register() {
 
     try {
       // If contracts are deployed, register onchain
-      if (contractsLive && signer) {
+      if (contractsLive) {
+        const signer = await ensureSigner();
         const result = await registerAgentOnchain(
           signer,
           agentDisplayName,
@@ -118,6 +121,12 @@ export default function Register() {
       }
 
       setRegistering(false);
+      addNotification({
+        type: 'register',
+        title: 'Agent Registered!',
+        message: `"${agentDisplayName}" has been registered ${txHash ? 'onchain' : 'locally'} successfully.`,
+        txHash: txHash || undefined,
+      });
       setStep(6); // Success step
     } catch (err: any) {
       console.error('Registration failed:', err);
@@ -248,9 +257,14 @@ Agent ID:    ${address.slice(0, 22)}`}
                   <div className="warning-box">
                     ⚠️ Store your private key securely. AgentFi cannot recover it if lost.
                   </div>
-                  <button className="btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={() => setStep(3)}>
-                    Continue →
-                  </button>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                    <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setStep(1)}>
+                      ← Back
+                    </button>
+                    <button className="btn-primary" style={{ flex: 1 }} onClick={() => setStep(3)}>
+                      Continue →
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -292,9 +306,14 @@ Agent ID:    ${address.slice(0, 22)}`}
                   <span className="toggle-slider" />
                 </label>
               </div>
-              <button className="btn-primary" style={{ width: '100%', marginTop: 8 }} onClick={() => setStep(4)}>
-                Continue →
-              </button>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setStep(2)}>
+                  ← Back
+                </button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={() => setStep(4)}>
+                  Continue →
+                </button>
+              </div>
             </div>
           )}
 
@@ -315,9 +334,14 @@ Agent ID:    ${address.slice(0, 22)}`}
                   Current balance: <span className="text-green">{balance} {currencySymbol}</span>
                 </span>
               </div>
-              <button className="btn-primary" style={{ width: '100%', marginTop: 16 }} onClick={() => setStep(5)}>
-                Continue →
-              </button>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setStep(3)}>
+                  ← Back
+                </button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={() => setStep(5)}>
+                  Continue →
+                </button>
+              </div>
             </div>
           )}
 
@@ -343,14 +367,24 @@ Agent ID:    ${address.slice(0, 22)}`}
                   ? 'This will send a transaction to register your agent on BNB Chain.'
                   : 'Contracts are not yet deployed. Your agent will be saved locally.'}
               </p>
-              <button
-                className="btn-primary btn-lg"
-                style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}
-                onClick={handleRegister}
-                disabled={registering}
-              >
-                {registering ? 'Registering onchain...' : 'Register Agent →'}
-              </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  className="btn-ghost btn-lg"
+                  style={{ flex: 1, textAlign: 'center', justifyContent: 'center' }}
+                  onClick={() => setStep(4)}
+                  disabled={registering}
+                >
+                  ← Back
+                </button>
+                <button
+                  className="btn-primary btn-lg"
+                  style={{ flex: 2, textAlign: 'center', justifyContent: 'center' }}
+                  onClick={handleRegister}
+                  disabled={registering}
+                >
+                  {registering ? 'Registering...' : 'Register Agent →'}
+                </button>
+              </div>
             </div>
           )}
 

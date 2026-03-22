@@ -181,16 +181,13 @@ export default function Overview() {
             <div className={`gs-step ${walletBalance > 0 ? 'gs-step-done' : ''}`}>
               <div className={`gs-step-number ${walletBalance > 0 ? 'gs-done' : ''}`}>{walletBalance > 0 ? '✓' : '2'}</div>
               <div className="gs-step-content">
-                <span className="gs-step-title">Get Testnet BNB</span>
+                <span className="gs-step-title">Fund Your Wallet</span>
                 <span className="gs-step-desc text-tertiary">
                   {walletBalance > 0 ? (
                     `Balance: ${walletBalance.toFixed(4)} ${currencySymbol}`
                   ) : (
                     <>
-                      You need tBNB to pay gas fees.{' '}
-                      <a href="https://www.bnbchain.org/en/testnet-faucet" target="_blank" rel="noopener noreferrer" className="text-green">
-                        Get free tBNB →
-                      </a>
+                      You need BNB to pay gas fees on BNB Smart Chain.
                     </>
                   )}
                 </span>

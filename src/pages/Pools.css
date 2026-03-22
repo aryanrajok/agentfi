@@ -33,10 +33,101 @@
   color: var(--gold);
 }
 
-.util-cell {
+/* Pool Grid */
+.pools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.pool-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pool-card:hover {
+  border-color: var(--gold-border);
+}
+
+.pool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pool-protocol-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid;
+  letter-spacing: 0.02em;
+  font-family: var(--font-data);
+}
+
+.pool-stable-badge {
+  display: inline-flex;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 3px;
+  background: rgba(0, 200, 83, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(0, 200, 83, 0.2);
+  margin-left: 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pool-risk-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+}
+
+.pool-symbol {
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pool-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 4px;
+}
+
+.pool-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pool-apy {
+  font-weight: 700;
+}
+
+.pool-prediction {
+  margin-top: 2px;
+}
+
+/* Spin animation for refresh */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }
 
 /* Drawer */
@@ -58,12 +149,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  animation: slideIn 0.2s ease;
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  overflow-y: auto;
 }
 
 .drawer-header {
@@ -95,4 +181,15 @@
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid var(--bg-border);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pool-tabs {
+    flex-wrap: wrap;
+  }
 }
